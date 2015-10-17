@@ -8,17 +8,15 @@ using Base.Test
 #for epoch in 1:10
 
 tmp = mktempdir()
-
 test_infile = @__FILE__
 test_compressed = joinpath(tmp, "runtests.jl.gz")
 test_empty = joinpath(tmp, "empty.jl.gz")
 
-@windows_only gunzip="gunzip.exe"
-@unix_only    gunzip="gunzip"
-
+@windows_only cmdGunzip=`where gunzip`
+@unix_only    cmdGunzip=`which gunzip`
 test_gunzip = true
 try
-    run(pipeline(`which $gunzip`, DevNull))
+	@compat run(pipeline(cmdGunzip, DevNull))
 catch
     test_gunzip = false
 end
@@ -28,7 +26,7 @@ try
     # test_group("Compress Test1: gzip.jl")
     ##########################
 
-    data = open(readall, test_infile);
+    data = open(readall, test_infile)
 
     first_char = data[1]
 
@@ -40,7 +38,7 @@ try
     @test_throws EOFError write(gzfile, data)
 
     if test_gunzip
-        data2 = readall(`$gunzip -c $test_compressed`)
+        data2 = readall(`gunzip -c $test_compressed`)
         @test data == data2
     end
 
@@ -49,8 +47,9 @@ try
 
     # Test gzfdio
     raw_file = open(test_compressed, "r")
-    gzfile = gzdopen(fd(raw_file), "r")
-    data4 = readall(gzfile)
+    @unix_only gzfile = gzdopen(fd(raw_file), "r")
+    @unix_only data4 = readall(gzfile)
+	@windows_only data4 ="Can not use gfzdio"
     close(gzfile)
     close(raw_file)
     @test data == data4
