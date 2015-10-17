@@ -1,7 +1,6 @@
 using Compat
 using GZip
 using Base.Test
-
 ##########################
 # test_context("GZip tests")
 ##########################
@@ -73,7 +72,7 @@ try
         gzopen(readall, test_compressed)
         throw(ErrorException("Expecting ArgumentError or similar"))
     catch ex
-        @test typeof(ex) <: Union(ArgumentError, ZError, GZError) ||
+@compat         @test typeof(ex) <: Union{ArgumentError, ZError, GZError} ||
               contains(ex.msg, "too many arguments")
     end
 
