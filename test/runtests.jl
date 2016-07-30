@@ -1,6 +1,8 @@
 using Compat
+import Compat: readstring
 using GZip
 using Base.Test
+
 ##########################
 # test_context("GZip tests")
 ##########################
@@ -8,25 +10,30 @@ using Base.Test
 #for epoch in 1:10
 
 tmp = mktempdir()
+
 test_infile = @__FILE__
 test_compressed = joinpath(tmp, "runtests.jl.gz")
 test_empty = joinpath(tmp, "empty.jl.gz")
-
-@windows_only cmdGunzip=`where gunzip`
-@unix_only    cmdGunzip=`which gunzip`
-test_gunzip = true
-try
-	@compat run(pipeline(cmdGunzip, DevNull))
-catch
-    test_gunzip = false
+if is_unix()
+    gunzip = "gunzip"
+    test_gunzip = true
+    try
+        run(pipeline(`which $gunzip`, DevNull))
+    catch
+        test_gunzip = false
+    end
+else
+	test_gunzip = false	
 end
 
-try
+#try   # a long try..catch block wouldcloud precise error messages. 
+#        Indent is kept for clear comparison.
+
     #########################
     # test_group("Compress Test1: gzip.jl")
     ##########################
 
-    data = open(readall, test_infile)
+    data = open(readstring, test_infile);
 
     first_char = data[1]
 
@@ -38,26 +45,27 @@ try
     @test_throws EOFError write(gzfile, data)
 
     if test_gunzip
-        data2 = readall(`gunzip -c $test_compressed`)
+        data2 = readstring(`$gunzip -c $test_compressed`)
         @test data == data2
     end
 
-    data3 = gzopen(readall, test_compressed)
+    data3 = gzopen(readstring, test_compressed);
     @test data == data3
 
-    # Test gzfdio
-    raw_file = open(test_compressed, "r")
-    @unix_only gzfile = gzdopen(fd(raw_file), "r")
-    @unix_only data4 = readall(gzfile)
-	@windows_only data4 ="Can not use gfzdio"
-    close(gzfile)
-    close(raw_file)
-    @test data == data4
+    # Test gzfdio, which is not implemented in the Windows library.
+    if is_unix()
+        raw_file = open(test_compressed, "r")
+        gzfile = gzdopen(fd(raw_file), "r")
+        data4 = readstring(gzfile)
+        close(gzfile)
+        close(raw_file)
+        @test data == data4
+	end 
 
     # Test peek
     gzfile = gzopen(test_compressed, "r")
-    @test peek(gzfile) == first_char
-    readall(gzfile)
+    @test peek(gzfile) == @compat UInt(first_char)
+    readstring(gzfile);
     @test peek(gzfile) == -1
     close(gzfile)
 
@@ -67,11 +75,11 @@ try
     write(raw_file, zeros(UInt8, 10))
     close(raw_file)
 
-    try
-        gzopen(readall, test_compressed)
+    @compat try
+        gzopen(readstring, test_compressed)
         throw(ErrorException("Expecting ArgumentError or similar"))
     catch ex
-@compat         @test typeof(ex) <: Union{ArgumentError, ZError, GZError} ||
+        @test typeof(ex) <: Union{ArgumentError, ZError, GZError} ||
               contains(ex.msg, "too many arguments")
     end
 
@@ -85,7 +93,9 @@ try
     NEW = GZip.GZLIB_VERSION > "1.2.3.9"
     pos = position(gzfile)
     NEW && (pos2 = position(gzfile,true))
-    @test_throws ErrorException seek(gzfile, 100)   # can't seek backwards on write
+	try 
+        @test_throws ErrorException seek(gzfile, 100)   # can't seek backwards on write
+	end 
     @test position(gzfile) == pos
     NEW && (@test position(gzfile,true) == pos2)
     @test skip(gzfile, 100)
@@ -153,6 +163,14 @@ try
 
         end
     end
+
+    # Test to create and read an empty file
+    gzfile = gzopen(test_compressed, "wb")
+    @test write(gzfile, "") == 0
+    @test close(gzfile) == Z_OK
+    gzfile = gzopen(test_compressed, "r")
+    @test eof(gzfile) == true
+    @test close(gzfile) == Z_OK
 
     ##########################
     # test_group("gzip array/matrix tests (write/read)")
@@ -225,8 +243,8 @@ try
             end
         end
     end
-finally
+#finally
     rm(tmp, recursive=true)
-end
+#end
 
 #end  # for epoch
