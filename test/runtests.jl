@@ -23,7 +23,7 @@ if is_unix()
         test_gunzip = false
     end
 else
-	test_gunzip = false	
+    test_gunzip = false
 end
 
 #try   # a long try..catch block wouldcloud precise error messages. 
@@ -60,7 +60,7 @@ end
         close(gzfile)
         close(raw_file)
         @test data == data4
-	end 
+    end 
 
     # Test peek
     gzfile = gzopen(test_compressed, "r")
@@ -93,9 +93,9 @@ end
     NEW = GZip.GZLIB_VERSION > "1.2.3.9"
     pos = position(gzfile)
     NEW && (pos2 = position(gzfile,true))
-	try 
+    try 
         @test_throws ErrorException seek(gzfile, 100)   # can't seek backwards on write
-	end 
+    end 
     @test position(gzfile) == pos
     NEW && (@test position(gzfile,true) == pos2)
     @test skip(gzfile, 100)
