@@ -95,7 +95,7 @@ end
     NEW && (pos2 = position(gzfile,true))
     try 
         @test_throws ErrorException seek(gzfile, 100)   # can't seek backwards on write
-    end 
+    end
     @test position(gzfile) == pos
     NEW && (@test position(gzfile,true) == pos2)
     @test skip(gzfile, 100)
